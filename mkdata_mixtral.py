@@ -16,6 +16,7 @@ t_inputs = []
 t_results = []
 data_id = 20
 
+
 def register(inp, gate_result):
     global layer, t_inputs, t_results, hidden_inputs, gate_results, data_id
     print(inp.shape, gate_result.shape)
@@ -24,14 +25,19 @@ def register(inp, gate_result):
     t_results.append(gate_result)
     layer += 1
     if layer == total_layers:
-        torch.save(np.array(t_inputs), f"pths_test/hidden_inputs.{data_id}.pth", pickle_protocol=4)
-        torch.save(np.array(t_results), f"pths_test/gate_results.{data_id}.pth", pickle_protocol=4)
+        torch.save(np.array(t_inputs),
+                   f"pths_mixtral/hidden_inputs.{data_id}.pth", pickle_protocol=4)
+        torch.save(np.array(t_results),
+                   f"pths_mixtral/gate_results.{data_id}.pth", pickle_protocol=4)
         t_inputs = []
         t_results = []
         layer = 0
         data_id += 1
 
-model = AutoModelForCausalLM.from_pretrained(model_id, register, device_map="auto", revision="refs/pr/5")
+
+model = AutoModelForCausalLM.from_pretrained(
+    model_id, register, device_map="auto", revision="refs/pr/5")
+
 
 def load_data():
     data_prefix = './data/'
@@ -43,12 +49,12 @@ def load_data():
         questions += (list(map(lambda x: json.loads(x)['solutions'], lines)))
     return questions
 
+
 questions = load_data()
 
-for i, question in enumerate(questions[20:30]):
+for i, question in enumerate(questions[:30]):
     print(f"iteration {i}...")
     inputs = tokenizer(question, return_tensors="pt")
     inputs = inputs.to("cuda")
     outputs = model.generate(**inputs, max_new_tokens=1)
     # print(outputs)
-

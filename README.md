@@ -10,5 +10,8 @@ Modified files:
 
 ```bash
 pip install ./transformers
-python mkdata.py
+
+python mkdata_mixtral.py
+# or
+python mkdata_nllb.py
 ```
