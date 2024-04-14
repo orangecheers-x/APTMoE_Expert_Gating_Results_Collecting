@@ -14,7 +14,7 @@ gate_results = []
 layer = 0
 t_inputs = []
 t_results = []
-data_id = 20
+data_id = 0
 
 
 def register(inp, gate_result):
