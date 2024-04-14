@@ -1,8 +1,8 @@
 # APTMoE Predictor
 
-Collecting the results of the expert gating process by hacking the `transformers` library.
+Collecting the results of the expert gating process by hacking the `transformers` library, and training the predictor gates.
 
-Modified files:
+Modified files in the `transformers` library:
 
 - `./transformers/src/transformers/models/mixtral/modeling_mixtral.py`
 - `./transformers/src/transformers/models/nllb_moe/modeling_nllb_moe.py`
