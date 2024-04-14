@@ -512,18 +512,18 @@ class NllbMoeAttention(nn.Module):
 
         if (self.head_dim * num_heads) != self.embed_dim:
             raise ValueError(
-                f"embed_dim must be divisible by num_heads (got `embed_dim`: {
+                f"embed_dim must be divisible by num_heads(got `embed_dim`: {
                     self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim**-0.5
-        self.is_decoder = is_decoder
-        self.is_causal = is_causal
+        self.scaling=self.head_dim**-0.5
+        self.is_decoder=is_decoder
+        self.is_causal=is_causal
 
-        self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.k_proj=nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.v_proj=nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.q_proj=nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.out_proj=nn.Linear(embed_dim, embed_dim, bias=bias)
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
@@ -531,22 +531,22 @@ class NllbMoeAttention(nn.Module):
     def forward(
         self,
         hidden_states: torch.Tensor,
-        encoder_hidden_states: Optional[torch.Tensor] = None,
-        past_key_value: Optional[Tuple[torch.Tensor]] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        layer_head_mask: Optional[torch.Tensor] = None,
-        output_attentions: bool = False,
+        encoder_hidden_states: Optional[torch.Tensor]=None,
+        past_key_value: Optional[Tuple[torch.Tensor]]=None,
+        attention_mask: Optional[torch.Tensor]=None,
+        layer_head_mask: Optional[torch.Tensor]=None,
+        output_attentions: bool=False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         """Input shape: Batch x Time x Channel"""
 
         # if encoder_hidden_states are provided this layer is used as a cross-attention layer
         # for the decoder
-        is_cross_attention = encoder_hidden_states is not None
+        is_cross_attention=encoder_hidden_states is not None
 
-        bsz, tgt_len, _ = hidden_states.size()
+        bsz, tgt_len, _=hidden_states.size()
 
         # get query proj
-        query_states = self.q_proj(hidden_states) * self.scaling
+        query_states=self.q_proj(hidden_states) * self.scaling
         # get key, value proj
         # `past_key_value[0].shape[2] == encoder_hidden_states.shape[1]`
         # is checking that the `sequence_length` of the `past_key_value` is the same as
@@ -557,24 +557,24 @@ class NllbMoeAttention(nn.Module):
             and past_key_value[0].shape[2] == encoder_hidden_states.shape[1]
         ):
             # reuse k,v, cross_attentions
-            key_states = past_key_value[0]
-            value_states = past_key_value[1]
+            key_states=past_key_value[0]
+            value_states=past_key_value[1]
         elif is_cross_attention:
             # cross_attentions
-            key_states = self._shape(self.k_proj(
+            key_states=self._shape(self.k_proj(
                 encoder_hidden_states), -1, bsz)
-            value_states = self._shape(
+            value_states=self._shape(
                 self.v_proj(encoder_hidden_states), -1, bsz)
         elif past_key_value is not None:
             # reuse k, v, self_attention
-            key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
-            value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
-            key_states = torch.cat([past_key_value[0], key_states], dim=2)
-            value_states = torch.cat([past_key_value[1], value_states], dim=2)
+            key_states=self._shape(self.k_proj(hidden_states), -1, bsz)
+            value_states=self._shape(self.v_proj(hidden_states), -1, bsz)
+            key_states=torch.cat([past_key_value[0], key_states], dim=2)
+            value_states=torch.cat([past_key_value[1], value_states], dim=2)
         else:
             # self_attention
-            key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
-            value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
+            key_states=self._shape(self.k_proj(hidden_states), -1, bsz)
+            value_states=self._shape(self.v_proj(hidden_states), -1, bsz)
 
         if self.is_decoder:
             # if cross_attention save Tuple(torch.Tensor, torch.Tensor) of all cross attention key/value_states.
@@ -584,21 +584,21 @@ class NllbMoeAttention(nn.Module):
             # all previous decoder key/value_states. Further calls to uni-directional self-attention
             # can concat previous decoder key/value_states to current projected key/value_states (third "elif" case)
             # if encoder bi-directional self-attention `past_key_value` is always `None`
-            past_key_value = (key_states, value_states)
+            past_key_value=(key_states, value_states)
 
-        proj_shape = (bsz * self.num_heads, -1, self.head_dim)
-        query_states = self._shape(
+        proj_shape=(bsz * self.num_heads, -1, self.head_dim)
+        query_states=self._shape(
             query_states, tgt_len, bsz).view(*proj_shape)
-        key_states = key_states.reshape(*proj_shape)
-        value_states = value_states.reshape(*proj_shape)
+        key_states=key_states.reshape(*proj_shape)
+        value_states=value_states.reshape(*proj_shape)
 
-        src_len = key_states.size(1)
-        attn_weights = torch.bmm(query_states, key_states.transpose(1, 2))
+        src_len=key_states.size(1)
+        attn_weights=torch.bmm(query_states, key_states.transpose(1, 2))
 
         if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
             raise ValueError(
                 f"Attention weights should be of size {
-                    (bsz * self.num_heads, tgt_len, src_len)}, but is"
+                    (bsz * self.num_heads, tgt_len, src_len)}, but is "
                 f" {attn_weights.size()}"
             )
 
@@ -608,23 +608,23 @@ class NllbMoeAttention(nn.Module):
                     f"Attention mask should be of size {(bsz, 1, tgt_len, src_len)}, but is {
                         attention_mask.size()}"
                 )
-            attn_weights = attn_weights.view(
+            attn_weights=attn_weights.view(
                 bsz, self.num_heads, tgt_len, src_len) + attention_mask
-            attn_weights = attn_weights.view(
+            attn_weights=attn_weights.view(
                 bsz * self.num_heads, tgt_len, src_len)
 
-        attn_weights = nn.functional.softmax(attn_weights, dim=-1)
+        attn_weights=nn.functional.softmax(attn_weights, dim=-1)
 
         if layer_head_mask is not None:
             if layer_head_mask.size() != (self.num_heads,):
                 raise ValueError(
                     f"Head mask for a single layer should be of size {
-                        (self.num_heads,)}, but is"
+                        (self.num_heads,)}, but is "
                     f" {layer_head_mask.size()}"
                 )
-            attn_weights = layer_head_mask.view(
+            attn_weights=layer_head_mask.view(
                 1, -1, 1, 1) * attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            attn_weights = attn_weights.view(
+            attn_weights=attn_weights.view(
                 bsz * self.num_heads, tgt_len, src_len)
 
         if output_attentions:
@@ -632,66 +632,66 @@ class NllbMoeAttention(nn.Module):
             # make sure that attn_weights keeps its gradient.
             # In order to do so, attn_weights have to be reshaped
             # twice and have to be reused in the following
-            attn_weights_reshaped = attn_weights.view(
+            attn_weights_reshaped=attn_weights.view(
                 bsz, self.num_heads, tgt_len, src_len)
-            attn_weights = attn_weights_reshaped.view(
+            attn_weights=attn_weights_reshaped.view(
                 bsz * self.num_heads, tgt_len, src_len)
         else:
-            attn_weights_reshaped = None
+            attn_weights_reshaped=None
 
-        attn_probs = nn.functional.dropout(
+        attn_probs=nn.functional.dropout(
             attn_weights, p=self.dropout, training=self.training)
 
-        attn_output = torch.bmm(attn_probs, value_states)
+        attn_output=torch.bmm(attn_probs, value_states)
 
         if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
             raise ValueError(
                 f"`attn_output` should be of size {
-                    (bsz * self.num_heads, tgt_len, self.head_dim)}, but is"
+                    (bsz * self.num_heads, tgt_len, self.head_dim)}, but is "
                 f" {attn_output.size()}"
             )
 
-        attn_output = attn_output.view(
+        attn_output=attn_output.view(
             bsz, self.num_heads, tgt_len, self.head_dim)
-        attn_output = attn_output.transpose(1, 2)
+        attn_output=attn_output.transpose(1, 2)
 
         # Use the `embed_dim` from the config (stored in the class) rather than `hidden_state` because `attn_output` can be
         # partitioned across GPUs when using tensor-parallelism.
-        attn_output = attn_output.reshape(bsz, tgt_len, self.embed_dim)
+        attn_output=attn_output.reshape(bsz, tgt_len, self.embed_dim)
 
-        attn_output = self.out_proj(attn_output)
+        attn_output=self.out_proj(attn_output)
 
         return attn_output, attn_weights_reshaped, past_key_value
 
 
 class NllbMoeEncoderLayer(nn.Module):
-    def __init__(self, register, config: NllbMoeConfig, is_sparse: bool = False):
+    def __init__(self, register, config: NllbMoeConfig, is_sparse: bool=False):
         super().__init__()
-        self.embed_dim = config.d_model
-        self.is_sparse = is_sparse
-        self.self_attn = NllbMoeAttention(
+        self.embed_dim=config.d_model
+        self.is_sparse=is_sparse
+        self.self_attn=NllbMoeAttention(
             embed_dim=self.embed_dim,
             num_heads=config.encoder_attention_heads,
             dropout=config.attention_dropout,
         )
-        self.attn_dropout = nn.Dropout(config.dropout)
-        self.self_attn_layer_norm = nn.LayerNorm(self.embed_dim)
+        self.attn_dropout=nn.Dropout(config.dropout)
+        self.self_attn_layer_norm=nn.LayerNorm(self.embed_dim)
         if not self.is_sparse:
-            self.ffn = NllbMoeDenseActDense(
+            self.ffn=NllbMoeDenseActDense(
                 config, ffn_dim=config.encoder_ffn_dim)
         else:
-            self.ffn = NllbMoeSparseMLP(
+            self.ffn=NllbMoeSparseMLP(
                 register, config, ffn_dim=config.encoder_ffn_dim)
-        self.ff_layer_norm = nn.LayerNorm(config.d_model)
-        self.ff_dropout = nn.Dropout(config.activation_dropout)
+        self.ff_layer_norm=nn.LayerNorm(config.d_model)
+        self.ff_dropout=nn.Dropout(config.activation_dropout)
 
     def forward(
         self,
         hidden_states: torch.Tensor,
         attention_mask: torch.Tensor,
         layer_head_mask: torch.Tensor,
-        output_attentions: bool = False,
-        output_router_logits: bool = False,
+        output_attentions: bool=False,
+        output_router_logits: bool=False,
     ) -> torch.Tensor:
         """
         Args:
@@ -706,40 +706,40 @@ class NllbMoeEncoderLayer(nn.Module):
                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
                 returned tensors for more detail.
         """
-        residual = hidden_states
-        hidden_states = self.self_attn_layer_norm(hidden_states)
-        hidden_states, attn_weights, _ = self.self_attn(
+        residual=hidden_states
+        hidden_states=self.self_attn_layer_norm(hidden_states)
+        hidden_states, attn_weights, _=self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             layer_head_mask=layer_head_mask,
             output_attentions=output_attentions,
         )
-        hidden_states = self.attn_dropout(hidden_states)
-        hidden_states = residual + hidden_states
+        hidden_states=self.attn_dropout(hidden_states)
+        hidden_states=residual + hidden_states
 
-        residual = hidden_states
+        residual=hidden_states
 
-        hidden_states = self.ff_layer_norm(hidden_states)
+        hidden_states=self.ff_layer_norm(hidden_states)
         if self.is_sparse:
-            hidden_states, router_states = self.ffn(
+            hidden_states, router_states=self.ffn(
                 hidden_states, attention_mask)
         else:
             # router_states set to None to track which layers have None gradients.
-            hidden_states, router_states = self.ffn(hidden_states), None
+            hidden_states, router_states=self.ffn(hidden_states), None
 
-        hidden_states = self.ff_dropout(hidden_states)
+        hidden_states=self.ff_dropout(hidden_states)
 
-        hidden_states = residual + hidden_states
+        hidden_states=residual + hidden_states
 
         if hidden_states.dtype == torch.float16 and (
             torch.isinf(hidden_states).any() or torch.isnan(
                 hidden_states).any()
         ):
-            clamp_value = torch.finfo(hidden_states.dtype).max - 1000
-            hidden_states = torch.clamp(
+            clamp_value=torch.finfo(hidden_states.dtype).max - 1000
+            hidden_states=torch.clamp(
                 hidden_states, min=-clamp_value, max=clamp_value)
 
-        outputs = (hidden_states,)
+        outputs=(hidden_states,)
 
         if output_attentions:
             outputs += (attn_weights,)
@@ -751,46 +751,46 @@ class NllbMoeEncoderLayer(nn.Module):
 
 
 class NllbMoeDecoderLayer(nn.Module):
-    def __init__(self, register, config: NllbMoeConfig, is_sparse: bool = False):
+    def __init__(self, register, config: NllbMoeConfig, is_sparse: bool=False):
         super().__init__()
-        self.embed_dim = config.d_model
-        self.is_sparse = is_sparse
-        self.self_attn = NllbMoeAttention(
+        self.embed_dim=config.d_model
+        self.is_sparse=is_sparse
+        self.self_attn=NllbMoeAttention(
             embed_dim=self.embed_dim,
             num_heads=config.decoder_attention_heads,
             dropout=config.attention_dropout,
             is_decoder=True,
         )
-        self.dropout = config.dropout
-        self.activation_fn = ACT2FN[config.activation_function]
-        self.attn_dropout = nn.Dropout(config.dropout)
+        self.dropout=config.dropout
+        self.activation_fn=ACT2FN[config.activation_function]
+        self.attn_dropout=nn.Dropout(config.dropout)
 
-        self.self_attn_layer_norm = nn.LayerNorm(self.embed_dim)
-        self.cross_attention = NllbMoeAttention(
+        self.self_attn_layer_norm=nn.LayerNorm(self.embed_dim)
+        self.cross_attention=NllbMoeAttention(
             self.embed_dim, config.decoder_attention_heads, config.attention_dropout, is_decoder=True
         )
-        self.cross_attention_layer_norm = nn.LayerNorm(self.embed_dim)
+        self.cross_attention_layer_norm=nn.LayerNorm(self.embed_dim)
         if not self.is_sparse:
-            self.ffn = NllbMoeDenseActDense(
+            self.ffn=NllbMoeDenseActDense(
                 config, ffn_dim=config.decoder_ffn_dim)
         else:
-            self.ffn = NllbMoeSparseMLP(
+            self.ffn=NllbMoeSparseMLP(
                 register, config, ffn_dim=config.decoder_ffn_dim)
-        self.ff_layer_norm = nn.LayerNorm(config.d_model)
-        self.ff_dropout = nn.Dropout(config.activation_dropout)
+        self.ff_layer_norm=nn.LayerNorm(config.d_model)
+        self.ff_dropout=nn.Dropout(config.activation_dropout)
 
     def forward(
         self,
         hidden_states: torch.Tensor,
-        attention_mask: Optional[torch.Tensor] = None,
-        encoder_hidden_states: Optional[torch.Tensor] = None,
-        encoder_attention_mask: Optional[torch.Tensor] = None,
-        layer_head_mask: Optional[torch.Tensor] = None,
-        cross_attn_layer_head_mask: Optional[torch.Tensor] = None,
-        past_key_value: Optional[Tuple[torch.Tensor]] = None,
-        output_attentions: Optional[bool] = False,
-        output_router_logits: Optional[bool] = False,
-        use_cache: Optional[bool] = True,
+        attention_mask: Optional[torch.Tensor]=None,
+        encoder_hidden_states: Optional[torch.Tensor]=None,
+        encoder_attention_mask: Optional[torch.Tensor]=None,
+        layer_head_mask: Optional[torch.Tensor]=None,
+        cross_attn_layer_head_mask: Optional[torch.Tensor]=None,
+        past_key_value: Optional[Tuple[torch.Tensor]]=None,
+        output_attentions: Optional[bool]=False,
+        output_router_logits: Optional[bool]=False,
+        use_cache: Optional[bool]=True,
     ) -> torch.Tensor:
         """
         Args:
@@ -814,35 +814,35 @@ class NllbMoeDecoderLayer(nn.Module):
                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
                 returned tensors for more detail.
         """
-        residual = hidden_states
-        hidden_states = self.self_attn_layer_norm(hidden_states)
+        residual=hidden_states
+        hidden_states=self.self_attn_layer_norm(hidden_states)
 
         # Self Attention
         # decoder uni-directional self-attention cached key/values tuple is at positions 1,2
-        self_attn_past_key_value = past_key_value[:
+        self_attn_past_key_value=past_key_value[:
                                                   2] if past_key_value is not None else None
         # add present self-attn cache to positions 1,2 of present_key_value tuple
-        hidden_states, self_attn_weights, present_key_value = self.self_attn(
+        hidden_states, self_attn_weights, present_key_value=self.self_attn(
             hidden_states=hidden_states,
             past_key_value=self_attn_past_key_value,
             attention_mask=attention_mask,
             layer_head_mask=layer_head_mask,
             output_attentions=output_attentions,
         )
-        hidden_states = self.attn_dropout(hidden_states)
-        hidden_states = residual + hidden_states
+        hidden_states=self.attn_dropout(hidden_states)
+        hidden_states=residual + hidden_states
 
         # Cross-Attention Block
-        cross_attn_present_key_value = None
-        cross_attn_weights = None
+        cross_attn_present_key_value=None
+        cross_attn_weights=None
         if encoder_hidden_states is not None:
-            residual = hidden_states
-            hidden_states = self.cross_attention_layer_norm(hidden_states)
+            residual=hidden_states
+            hidden_states=self.cross_attention_layer_norm(hidden_states)
 
             # cross_attn cached key/values tuple is at positions 3,4 of present_key_value tuple
-            cross_attn_past_key_value = past_key_value[-2:
+            cross_attn_past_key_value=past_key_value[-2:
                                                        ] if past_key_value is not None else None
-            hidden_states, cross_attn_weights, cross_attn_present_key_value = self.cross_attention(
+            hidden_states, cross_attn_weights, cross_attn_present_key_value=self.cross_attention(
                 hidden_states=hidden_states,
                 encoder_hidden_states=encoder_hidden_states,
                 past_key_value=cross_attn_past_key_value,
@@ -850,33 +850,33 @@ class NllbMoeDecoderLayer(nn.Module):
                 layer_head_mask=cross_attn_layer_head_mask,
                 output_attentions=output_attentions,
             )
-            hidden_states = self.attn_dropout(hidden_states)
-            hidden_states = residual + hidden_states
+            hidden_states=self.attn_dropout(hidden_states)
+            hidden_states=residual + hidden_states
 
             # add cross-attn to positions 3,4 of present_key_value tuple
             present_key_value += cross_attn_present_key_value
 
         # Fully Connected
-        residual = hidden_states
+        residual=hidden_states
 
-        hidden_states = self.ff_layer_norm(hidden_states)
+        hidden_states=self.ff_layer_norm(hidden_states)
         if self.is_sparse:
-            hidden_states, router_states = self.ffn(
+            hidden_states, router_states=self.ffn(
                 hidden_states, attention_mask)
         else:
-            hidden_states, router_states = self.ffn(hidden_states), None
+            hidden_states, router_states=self.ffn(hidden_states), None
 
-        hidden_states = self.ff_dropout(hidden_states)
+        hidden_states=self.ff_dropout(hidden_states)
 
-        hidden_states = residual + hidden_states
+        hidden_states=residual + hidden_states
 
         # clamp inf values to enable fp16 training
         if hidden_states.dtype == torch.float16 and torch.isinf(hidden_states).any():
-            clamp_value = torch.finfo(hidden_states.dtype).max - 1000
-            hidden_states = torch.clamp(
+            clamp_value=torch.finfo(hidden_states.dtype).max - 1000
+            hidden_states=torch.clamp(
                 hidden_states, min=-clamp_value, max=clamp_value)
 
-        outputs = (hidden_states, present_key_value)
+        outputs=(hidden_states, present_key_value)
 
         if output_attentions:
             outputs += (self_attn_weights, cross_attn_weights)
@@ -888,14 +888,14 @@ class NllbMoeDecoderLayer(nn.Module):
 
 
 class NllbMoePreTrainedModel(PreTrainedModel):
-    config_class = NllbMoeConfig
-    base_model_prefix = "model"
-    supports_gradient_checkpointing = True
-    _no_split_modules = ["NllbMoeEncoderLayer", "NllbMoeDecoderLayer"]
+    config_class=NllbMoeConfig
+    base_model_prefix="model"
+    supports_gradient_checkpointing=True
+    _no_split_modules=["NllbMoeEncoderLayer", "NllbMoeDecoderLayer"]
 
     def _init_weights(self, module):
         """Initialize the weights"""
-        std = self.config.init_std
+        std=self.config.init_std
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=std)
             if module.bias is not None:
@@ -906,7 +906,7 @@ class NllbMoePreTrainedModel(PreTrainedModel):
                 module.weight.data[module.padding_idx].zero_()
 
 
-NLLB_MOE_START_DOCSTRING = r"""
+NLLB_MOE_START_DOCSTRING=r"""
     This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
@@ -922,7 +922,7 @@ NLLB_MOE_START_DOCSTRING = r"""
             [`~PreTrainedModel.from_pretrained`] method to load the model weights.
 """
 
-NLLB_MOE_GENERATION_EXAMPLE = r"""
+NLLB_MOE_GENERATION_EXAMPLE=r"""
     Translation example:
 
     ```python
@@ -940,7 +940,7 @@ NLLB_MOE_GENERATION_EXAMPLE = r"""
     ```
 """
 
-NLLB_MOE_INPUTS_DOCSTRING = r"""
+NLLB_MOE_INPUTS_DOCSTRING=r"""
     Args:
         input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):
             Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
@@ -1045,53 +1045,53 @@ class NllbMoeEncoder(NllbMoePreTrainedModel):
             output embedding
     """
 
-    def __init__(self, register, config: NllbMoeConfig, embed_tokens: Optional[nn.Embedding] = None):
+    def __init__(self, register, config: NllbMoeConfig, embed_tokens: Optional[nn.Embedding]=None):
         super().__init__(config)
 
-        self.dropout = config.dropout
-        self.layerdrop = config.encoder_layerdrop
+        self.dropout=config.dropout
+        self.layerdrop=config.encoder_layerdrop
 
-        embed_dim = config.d_model
-        self.padding_idx = config.pad_token_id
-        self.max_source_positions = config.max_position_embeddings
-        self.embed_scale = math.sqrt(
+        embed_dim=config.d_model
+        self.padding_idx=config.pad_token_id
+        self.max_source_positions=config.max_position_embeddings
+        self.embed_scale=math.sqrt(
             embed_dim) if config.scale_embedding else 1.0
 
-        self.embed_tokens = nn.Embedding(
+        self.embed_tokens=nn.Embedding(
             config.vocab_size, embed_dim, self.padding_idx)
 
         if embed_tokens is not None:
-            self.embed_tokens.weight = embed_tokens.weight
+            self.embed_tokens.weight=embed_tokens.weight
 
-        self.embed_positions = NllbMoeSinusoidalPositionalEmbedding(
+        self.embed_positions=NllbMoeSinusoidalPositionalEmbedding(
             config.max_position_embeddings,
             embed_dim,
             self.padding_idx,
         )
-        sparse_step = config.encoder_sparse_step
-        self.layers = nn.ModuleList()
+        sparse_step=config.encoder_sparse_step
+        self.layers=nn.ModuleList()
         for i in range(config.encoder_layers):
-            is_sparse = (
+            is_sparse=(
                 i + 1) % sparse_step == 0 if sparse_step > 0 else False
             self.layers.append(NllbMoeEncoderLayer(
                 register, config, is_sparse))
 
-        self.layer_norm = nn.LayerNorm(config.d_model)
+        self.layer_norm=nn.LayerNorm(config.d_model)
 
-        self.gradient_checkpointing = False
+        self.gradient_checkpointing=False
         # Initialize weights and apply final processing
         self.post_init()
 
     def forward(
         self,
-        input_ids: Optional[torch.Tensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        head_mask: Optional[torch.Tensor] = None,
-        inputs_embeds: Optional[torch.Tensor] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        output_router_logits: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        input_ids: Optional[torch.Tensor]=None,
+        attention_mask: Optional[torch.Tensor]=None,
+        head_mask: Optional[torch.Tensor]=None,
+        inputs_embeds: Optional[torch.Tensor]=None,
+        output_attentions: Optional[bool]=None,
+        output_hidden_states: Optional[bool]=None,
+        output_router_logits: Optional[bool]=None,
+        return_dict: Optional[bool]=None,
     ):
         r"""
         Args:
@@ -1132,11 +1132,11 @@ class NllbMoeEncoder(NllbMoePreTrainedModel):
             return_dict (`bool`, *optional*):
                 Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
         """
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
+        output_attentions=output_attentions if output_attentions is not None else self.config.output_attentions
+        output_hidden_states=(
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = return_dict if return_dict is not None else self.config.return_dict
+        return_dict=return_dict if return_dict is not None else self.config.return_dict
 
         # retrieve input_ids and inputs_embeds
         if input_ids is not None and inputs_embeds is not None:
@@ -1145,53 +1145,53 @@ class NllbMoeEncoder(NllbMoePreTrainedModel):
         elif input_ids is not None:
             self.warn_if_padding_and_no_attention_mask(
                 input_ids, attention_mask)
-            input_shape = input_ids.size()
-            input_ids = input_ids.view(-1, input_shape[-1])
+            input_shape=input_ids.size()
+            input_ids=input_ids.view(-1, input_shape[-1])
         elif inputs_embeds is not None:
-            input_shape = inputs_embeds.size()[:-1]
+            input_shape=inputs_embeds.size()[:-1]
         else:
             raise ValueError(
                 "You have to specify either input_ids or inputs_embeds")
 
         if inputs_embeds is None:
-            inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
+            inputs_embeds=self.embed_tokens(input_ids) * self.embed_scale
 
-        embed_pos = self.embed_positions(input_ids, inputs_embeds)
-        embed_pos = embed_pos.to(inputs_embeds.device)
+        embed_pos=self.embed_positions(input_ids, inputs_embeds)
+        embed_pos=embed_pos.to(inputs_embeds.device)
 
-        hidden_states = inputs_embeds + embed_pos
-        hidden_states = nn.functional.dropout(
+        hidden_states=inputs_embeds + embed_pos
+        hidden_states=nn.functional.dropout(
             hidden_states, p=self.dropout, training=self.training)
 
         # expand attention_mask
         if attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-            attention_mask = _prepare_4d_attention_mask(
+            attention_mask=_prepare_4d_attention_mask(
                 attention_mask, inputs_embeds.dtype)
 
-        encoder_states = () if output_hidden_states else None
-        all_router_probs = () if output_router_logits else None
-        all_attentions = () if output_attentions else None
+        encoder_states=() if output_hidden_states else None
+        all_router_probs=() if output_router_logits else None
+        all_attentions=() if output_attentions else None
 
         # check if head_mask has a correct number of layers specified if desired
         if head_mask is not None:
             if head_mask.size()[0] != len(self.layers):
                 raise ValueError(
                     f"The head_mask should be specified for {
-                        len(self.layers)} layers, but it is for"
+                        len(self.layers)} layers, but it is for "
                     f" {head_mask.size()[0]}."
                 )
 
         for idx, encoder_layer in enumerate(self.layers):
             if output_hidden_states:
-                encoder_states = encoder_states + (hidden_states,)
+                encoder_states=encoder_states + (hidden_states,)
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
-            dropout_probability = torch.rand([])
+            dropout_probability=torch.rand([])
             if self.training and (dropout_probability < self.layerdrop):  # skip the layer
-                layer_outputs = (None, None, None)
+                layer_outputs=(None, None, None)
             else:
                 if self.gradient_checkpointing and self.training:
-                    layer_outputs = self._gradient_checkpointing_func(
+                    layer_outputs=self._gradient_checkpointing_func(
                         encoder_layer.__call__,
                         hidden_states,
                         attention_mask,
@@ -1199,7 +1199,7 @@ class NllbMoeEncoder(NllbMoePreTrainedModel):
                         output_attentions,
                     )
                 else:
-                    layer_outputs = encoder_layer(
+                    layer_outputs=encoder_layer(
                         hidden_states,
                         attention_mask,
                         layer_head_mask=(
@@ -1208,7 +1208,7 @@ class NllbMoeEncoder(NllbMoePreTrainedModel):
                         output_router_logits=output_router_logits,
                     )
 
-                hidden_states = layer_outputs[0]
+                hidden_states=layer_outputs[0]
 
             if output_attentions:
                 all_attentions += (layer_outputs[1],)
@@ -1216,7 +1216,7 @@ class NllbMoeEncoder(NllbMoePreTrainedModel):
             if output_router_logits:
                 all_router_probs += (layer_outputs[-1],)
 
-        last_hidden_state = self.layer_norm(hidden_states)
+        last_hidden_state=self.layer_norm(hidden_states)
 
         if output_hidden_states:
             encoder_states += (last_hidden_state,)
@@ -1245,56 +1245,56 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
             output embedding
     """
 
-    def __init__(self, register, config: NllbMoeConfig, embed_tokens: Optional[nn.Embedding] = None):
+    def __init__(self, register, config: NllbMoeConfig, embed_tokens: Optional[nn.Embedding]=None):
         super().__init__(config)
-        self.dropout = config.dropout
-        self.layerdrop = config.decoder_layerdrop
-        self.padding_idx = config.pad_token_id
-        self.max_target_positions = config.max_position_embeddings
-        self.embed_scale = math.sqrt(
+        self.dropout=config.dropout
+        self.layerdrop=config.decoder_layerdrop
+        self.padding_idx=config.pad_token_id
+        self.max_target_positions=config.max_position_embeddings
+        self.embed_scale=math.sqrt(
             config.d_model) if config.scale_embedding else 1.0
 
-        self.embed_tokens = nn.Embedding(
+        self.embed_tokens=nn.Embedding(
             config.vocab_size, config.d_model, self.padding_idx)
 
         if embed_tokens is not None:
-            self.embed_tokens.weight = embed_tokens.weight
+            self.embed_tokens.weight=embed_tokens.weight
 
-        self.embed_positions = NllbMoeSinusoidalPositionalEmbedding(
+        self.embed_positions=NllbMoeSinusoidalPositionalEmbedding(
             config.max_position_embeddings,
             config.d_model,
             self.padding_idx,
         )
 
-        sparse_step = config.decoder_sparse_step
-        self.layers = nn.ModuleList()
+        sparse_step=config.decoder_sparse_step
+        self.layers=nn.ModuleList()
         for i in range(config.decoder_layers):
-            is_sparse = (
+            is_sparse=(
                 i + 1) % sparse_step == 0 if sparse_step > 0 else False
             self.layers.append(NllbMoeDecoderLayer(
                 register, config, is_sparse))
 
-        self.layer_norm = nn.LayerNorm(config.d_model)
+        self.layer_norm=nn.LayerNorm(config.d_model)
 
-        self.gradient_checkpointing = False
+        self.gradient_checkpointing=False
         # Initialize weights and apply final processing
         self.post_init()
 
     def forward(
         self,
-        input_ids: Optional[torch.Tensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        encoder_hidden_states: Optional[torch.Tensor] = None,
-        encoder_attention_mask: Optional[torch.Tensor] = None,
-        head_mask: Optional[torch.Tensor] = None,
-        cross_attn_head_mask: Optional[torch.Tensor] = None,
-        past_key_values: Optional[List[torch.FloatTensor]] = None,
-        inputs_embeds: Optional[torch.Tensor] = None,
-        use_cache: Optional[bool] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        output_router_logits: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        input_ids: Optional[torch.Tensor]=None,
+        attention_mask: Optional[torch.Tensor]=None,
+        encoder_hidden_states: Optional[torch.Tensor]=None,
+        encoder_attention_mask: Optional[torch.Tensor]=None,
+        head_mask: Optional[torch.Tensor]=None,
+        cross_attn_head_mask: Optional[torch.Tensor]=None,
+        past_key_values: Optional[List[torch.FloatTensor]]=None,
+        inputs_embeds: Optional[torch.Tensor]=None,
+        use_cache: Optional[bool]=None,
+        output_attentions: Optional[bool]=None,
+        output_hidden_states: Optional[bool]=None,
+        output_router_logits: Optional[bool]=None,
+        return_dict: Optional[bool]=None,
     ):
         r"""
         Args:
@@ -1364,53 +1364,53 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
             return_dict (`bool`, *optional*):
                 Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
         """
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
+        output_attentions=output_attentions if output_attentions is not None else self.config.output_attentions
+        output_hidden_states=(
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        use_cache = use_cache if use_cache is not None else self.config.use_cache
-        return_dict = return_dict if return_dict is not None else self.config.return_dict
+        use_cache=use_cache if use_cache is not None else self.config.use_cache
+        return_dict=return_dict if return_dict is not None else self.config.return_dict
 
         # retrieve input_ids and inputs_embeds
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError(
                 "You cannot specify both decoder_input_ids and decoder_inputs_embeds at the same time")
         elif input_ids is not None:
-            input_shape = input_ids.size()
-            input_ids = input_ids.view(-1, input_shape[-1])
+            input_shape=input_ids.size()
+            input_ids=input_ids.view(-1, input_shape[-1])
         elif inputs_embeds is not None:
-            input_shape = inputs_embeds.size()[:-1]
+            input_shape=inputs_embeds.size()[:-1]
         else:
             raise ValueError(
                 "You have to specify either decoder_input_ids or decoder_inputs_embeds")
 
         # past_key_values_length
-        past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
+        past_key_values_length=past_key_values[0][0].shape[2] if past_key_values is not None else 0
 
         if inputs_embeds is None:
-            inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
+            inputs_embeds=self.embed_tokens(input_ids) * self.embed_scale
 
         # create causal mask
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-        combined_attention_mask = _prepare_4d_causal_attention_mask(
+        combined_attention_mask=_prepare_4d_causal_attention_mask(
             attention_mask, input_shape, inputs_embeds, past_key_values_length
         )
 
         # expand encoder attention mask
         if encoder_hidden_states is not None and encoder_attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-            encoder_attention_mask = _prepare_4d_attention_mask(
+            encoder_attention_mask=_prepare_4d_attention_mask(
                 encoder_attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]
             )
 
         # embed positions
-        positions = self.embed_positions(
+        positions=self.embed_positions(
             input_ids, inputs_embeds, past_key_values_length)
-        positions = positions.to(inputs_embeds.device)
+        positions=positions.to(inputs_embeds.device)
 
-        hidden_states = inputs_embeds + positions
+        hidden_states=inputs_embeds + positions
 
-        hidden_states = nn.functional.dropout(
+        hidden_states=nn.functional.dropout(
             hidden_states, p=self.dropout, training=self.training)
 
         if self.gradient_checkpointing and self.training:
@@ -1418,14 +1418,14 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
                 logger.warning_once(
                     "`use_cache=True` is incompatible with gradient checkpointing. Setting" " `use_cache=False`..."
                 )
-                use_cache = False
+                use_cache=False
 
         # decoder layers
-        all_hidden_states = () if output_hidden_states else None
-        all_self_attns = () if output_attentions else None
-        all_router_probs = () if output_router_logits else None
-        all_cross_attentions = () if output_attentions else None
-        present_key_value_states = () if use_cache else None
+        all_hidden_states=() if output_hidden_states else None
+        all_self_attns=() if output_attentions else None
+        all_router_probs=() if output_router_logits else None
+        all_cross_attentions=() if output_attentions else None
+        present_key_value_states=() if use_cache else None
 
         # check if head_mask/cross_attn_head_mask has a correct number of layers specified if desired
         for attn_mask, mask_name in zip([head_mask, cross_attn_head_mask], ["head_mask", "cross_attn_head_mask"]):
@@ -1433,26 +1433,26 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
                 if attn_mask.size()[0] != len(self.layers):
                     raise ValueError(
                         f"The `{mask_name}` should be specified for {
-                            len(self.layers)} layers, but it is for"
+                            len(self.layers)} layers, but it is for "
                         f" {head_mask.size()[0]}."
                     )
-        deepspeed_zero3_is_enabled = is_deepspeed_zero3_enabled()
+        deepspeed_zero3_is_enabled=is_deepspeed_zero3_enabled()
 
         for idx, decoder_layer in enumerate(self.layers):
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
 
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
-            dropout_probability = torch.rand([])
+            dropout_probability=torch.rand([])
 
-            skip_the_layer = True if self.training and (
+            skip_the_layer=True if self.training and (
                 dropout_probability < self.layerdrop) else False
             if not skip_the_layer or deepspeed_zero3_is_enabled:
-                layer_head_mask = head_mask[idx] if head_mask is not None else None
-                cross_attn_layer_head_mask = cross_attn_head_mask[
+                layer_head_mask=head_mask[idx] if head_mask is not None else None
+                cross_attn_layer_head_mask=cross_attn_head_mask[
                     idx] if cross_attn_head_mask is not None else None
 
-                past_key_value = past_key_values[idx] if past_key_values is not None else None
+                past_key_value=past_key_values[idx] if past_key_values is not None else None
 
                 # under deepspeed zero3 all gpus must run in sync
                 if self.gradient_checkpointing and self.training:
@@ -1460,8 +1460,8 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
                         logger.warning_once(
                             "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`..."
                         )
-                        use_cache = False
-                    layer_outputs = self._gradient_checkpointing_func(
+                        use_cache=False
+                    layer_outputs=self._gradient_checkpointing_func(
                         decoder_layer.forward,
                         hidden_states,
                         combined_attention_mask,
@@ -1474,7 +1474,7 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
                         output_attentions,
                     )
                 else:
-                    layer_outputs = decoder_layer(
+                    layer_outputs=decoder_layer(
                         hidden_states,
                         attention_mask=combined_attention_mask,
                         encoder_hidden_states=encoder_hidden_states,
@@ -1487,7 +1487,7 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
                         output_router_logits=output_router_logits,
                     )
 
-                hidden_states = layer_outputs[0]
+                hidden_states=layer_outputs[0]
 
             if skip_the_layer:
                 continue
@@ -1502,7 +1502,7 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
             if output_router_logits:
                 all_router_probs += (layer_outputs[-1],)
 
-        hidden_states = self.layer_norm(hidden_states)
+        hidden_states=self.layer_norm(hidden_states)
 
         # Add last layer
         if output_hidden_states:
@@ -1531,21 +1531,21 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
         )
 
 
-@add_start_docstrings(
+@ add_start_docstrings(
     "The bare NllbMoe Model outputting raw hidden-states without any specific head on top.",
     NLLB_MOE_START_DOCSTRING,
 )
 class NllbMoeModel(NllbMoePreTrainedModel):
-    _tied_weights_keys = ["encoder.embed_tokens.weight",
+    _tied_weights_keys=["encoder.embed_tokens.weight",
                           "decoder.embed_tokens.weight"]
 
     def __init__(self, config: NllbMoeConfig, register):
         super().__init__(config)
-        padding_idx, vocab_size = config.pad_token_id, config.vocab_size
-        self.shared = nn.Embedding(vocab_size, config.d_model, padding_idx)
+        padding_idx, vocab_size=config.pad_token_id, config.vocab_size
+        self.shared=nn.Embedding(vocab_size, config.d_model, padding_idx)
 
-        self.encoder = NllbMoeEncoder(register, config, self.shared)
-        self.decoder = NllbMoeDecoder(register, config, self.shared)
+        self.encoder=NllbMoeEncoder(register, config, self.shared)
+        self.decoder=NllbMoeDecoder(register, config, self.shared)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1554,9 +1554,9 @@ class NllbMoeModel(NllbMoePreTrainedModel):
         return self.shared
 
     def set_input_embeddings(self, value):
-        self.shared = value
-        self.encoder.embed_tokens = self.shared
-        self.decoder.embed_tokens = self.shared
+        self.shared=value
+        self.encoder.embed_tokens=self.shared
+        self.decoder.embed_tokens=self.shared
 
     def _tie_weights(self):
         if self.config.tie_word_embeddings:
@@ -1569,27 +1569,27 @@ class NllbMoeModel(NllbMoePreTrainedModel):
     def get_decoder(self):
         return self.decoder
 
-    @add_start_docstrings_to_model_forward(NLLB_MOE_INPUTS_DOCSTRING)
-    @add_start_docstrings_to_model_forward(NLLB_MOE_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=Seq2SeqMoEModelOutput, config_class=_CONFIG_FOR_DOC)
+    @ add_start_docstrings_to_model_forward(NLLB_MOE_INPUTS_DOCSTRING)
+    @ add_start_docstrings_to_model_forward(NLLB_MOE_INPUTS_DOCSTRING)
+    @ replace_return_docstrings(output_type=Seq2SeqMoEModelOutput, config_class=_CONFIG_FOR_DOC)
     def forward(
         self,
-        input_ids: Optional[torch.LongTensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        decoder_input_ids: Optional[torch.LongTensor] = None,
-        decoder_attention_mask: Optional[torch.LongTensor] = None,
-        head_mask: Optional[torch.Tensor] = None,
-        decoder_head_mask: Optional[torch.Tensor] = None,
-        cross_attn_head_mask: Optional[torch.Tensor] = None,
-        encoder_outputs: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
-        past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
-        decoder_inputs_embeds: Optional[torch.FloatTensor] = None,
-        use_cache: Optional[bool] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        output_router_logits: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        input_ids: Optional[torch.LongTensor]=None,
+        attention_mask: Optional[torch.Tensor]=None,
+        decoder_input_ids: Optional[torch.LongTensor]=None,
+        decoder_attention_mask: Optional[torch.LongTensor]=None,
+        head_mask: Optional[torch.Tensor]=None,
+        decoder_head_mask: Optional[torch.Tensor]=None,
+        cross_attn_head_mask: Optional[torch.Tensor]=None,
+        encoder_outputs: Optional[Tuple[Tuple[torch.FloatTensor]]]=None,
+        past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]]=None,
+        inputs_embeds: Optional[torch.FloatTensor]=None,
+        decoder_inputs_embeds: Optional[torch.FloatTensor]=None,
+        use_cache: Optional[bool]=None,
+        output_attentions: Optional[bool]=None,
+        output_hidden_states: Optional[bool]=None,
+        output_router_logits: Optional[bool]=None,
+        return_dict: Optional[bool]=None,
     ) -> Union[Tuple[torch.Tensor], Seq2SeqMoEModelOutput]:
         r"""
         Returns:
@@ -1605,7 +1605,8 @@ class NllbMoeModel(NllbMoePreTrainedModel):
         >>> input_ids = tokenizer(
         ...     "Studies have been shown that owning a dog is good for you", return_tensors="pt"
         ... ).input_ids  # Batch size 1
-        >>> decoder_input_ids = tokenizer("Studies show that", return_tensors="pt").input_ids  # Batch size 1
+        # Batch size 1
+        >>> decoder_input_ids = tokenizer("Studies show that", return_tensors="pt").input_ids
 
         >>> # preprocess: Prepend decoder_input_ids with start token which is pad token for NllbMoeModel
         >>> decoder_input_ids = model._shift_right(decoder_input_ids)
@@ -1614,9 +1615,9 @@ class NllbMoeModel(NllbMoePreTrainedModel):
         >>> outputs = model(input_ids=input_ids, decoder_input_ids=decoder_input_ids)
         >>> last_hidden_states = outputs.last_hidden_state
         ```"""
-        return_dict = return_dict if return_dict is not None else self.config.return_dict
+        return_dict=return_dict if return_dict is not None else self.config.return_dict
         if encoder_outputs is None:
-            encoder_outputs = self.encoder(
+            encoder_outputs=self.encoder(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 head_mask=head_mask,
@@ -1628,7 +1629,7 @@ class NllbMoeModel(NllbMoePreTrainedModel):
             )
         # If the user passed a tuple for encoder_outputs, we wrap it in a BaseModelOutput when return_dict=True
         elif return_dict and not isinstance(encoder_outputs, MoEModelOutput):
-            encoder_outputs = MoEModelOutput(
+            encoder_outputs=MoEModelOutput(
                 last_hidden_state=encoder_outputs[0],
                 hidden_states=encoder_outputs[1] if len(
                     encoder_outputs) > 1 else None,
@@ -1639,7 +1640,7 @@ class NllbMoeModel(NllbMoePreTrainedModel):
             )
 
         # decoder outputs consists of (dec_features, past_key_value, dec_hidden, dec_attn)
-        decoder_outputs = self.decoder(
+        decoder_outputs=self.decoder(
             input_ids=decoder_input_ids,
             attention_mask=decoder_attention_mask,
             encoder_hidden_states=encoder_outputs[0],
@@ -1672,21 +1673,21 @@ class NllbMoeModel(NllbMoePreTrainedModel):
         )
 
 
-@add_start_docstrings(
+@ add_start_docstrings(
     "The NllbMoe Model with a language modeling head. Can be used for summarization.", NLLB_MOE_START_DOCSTRING
 )
 class NllbMoeForConditionalGeneration(NllbMoePreTrainedModel):
-    base_model_prefix = "model"
-    _tied_weights_keys = ["encoder.embed_tokens.weight",
+    base_model_prefix="model"
+    _tied_weights_keys=["encoder.embed_tokens.weight",
                           "decoder.embed_tokens.weight", "lm_head.weight"]
 
     def __init__(self, config: NllbMoeConfig, register):
         super().__init__(config)
-        self.model = NllbMoeModel(config, register)
-        self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
+        self.model=NllbMoeModel(config, register)
+        self.lm_head=nn.Linear(config.d_model, config.vocab_size, bias=False)
 
-        self.router_z_loss_coef = config.router_z_loss_coef
-        self.router_aux_loss_coef = config.router_aux_loss_coef
+        self.router_z_loss_coef=config.router_z_loss_coef
+        self.router_aux_loss_coef=config.router_aux_loss_coef
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -1700,30 +1701,30 @@ class NllbMoeForConditionalGeneration(NllbMoePreTrainedModel):
         return self.lm_head
 
     def set_output_embeddings(self, new_embeddings):
-        self.lm_head = new_embeddings
+        self.lm_head=new_embeddings
 
-    @add_start_docstrings_to_model_forward(NLLB_MOE_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=Seq2SeqMoEOutput, config_class=_CONFIG_FOR_DOC)
-    @add_end_docstrings(NLLB_MOE_GENERATION_EXAMPLE)
+    @ add_start_docstrings_to_model_forward(NLLB_MOE_INPUTS_DOCSTRING)
+    @ replace_return_docstrings(output_type=Seq2SeqMoEOutput, config_class=_CONFIG_FOR_DOC)
+    @ add_end_docstrings(NLLB_MOE_GENERATION_EXAMPLE)
     def forward(
         self,
-        input_ids: Optional[torch.LongTensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        decoder_input_ids: Optional[torch.LongTensor] = None,
-        decoder_attention_mask: Optional[torch.LongTensor] = None,
-        head_mask: Optional[torch.Tensor] = None,
-        decoder_head_mask: Optional[torch.Tensor] = None,
-        cross_attn_head_mask: Optional[torch.Tensor] = None,
-        encoder_outputs: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
-        past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
-        decoder_inputs_embeds: Optional[torch.FloatTensor] = None,
-        labels: Optional[torch.LongTensor] = None,
-        use_cache: Optional[bool] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        output_router_logits: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        input_ids: Optional[torch.LongTensor]=None,
+        attention_mask: Optional[torch.Tensor]=None,
+        decoder_input_ids: Optional[torch.LongTensor]=None,
+        decoder_attention_mask: Optional[torch.LongTensor]=None,
+        head_mask: Optional[torch.Tensor]=None,
+        decoder_head_mask: Optional[torch.Tensor]=None,
+        cross_attn_head_mask: Optional[torch.Tensor]=None,
+        encoder_outputs: Optional[Tuple[Tuple[torch.FloatTensor]]]=None,
+        past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]]=None,
+        inputs_embeds: Optional[torch.FloatTensor]=None,
+        decoder_inputs_embeds: Optional[torch.FloatTensor]=None,
+        labels: Optional[torch.LongTensor]=None,
+        use_cache: Optional[bool]=None,
+        output_attentions: Optional[bool]=None,
+        output_hidden_states: Optional[bool]=None,
+        output_router_logits: Optional[bool]=None,
+        return_dict: Optional[bool]=None,
     ) -> Union[Tuple[torch.Tensor], Seq2SeqMoEOutput]:
         r"""
         labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -1733,18 +1734,18 @@ class NllbMoeForConditionalGeneration(NllbMoePreTrainedModel):
 
         Returns:
         """
-        return_dict = return_dict if return_dict is not None else self.config.return_dict
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_router_logits = (
+        return_dict=return_dict if return_dict is not None else self.config.return_dict
+        output_attentions=output_attentions if output_attentions is not None else self.config.output_attentions
+        output_router_logits=(
             output_router_logits if output_router_logits is not None else self.config.output_router_logits
         )
         if labels is not None:
             if decoder_input_ids is None:
-                decoder_input_ids = shift_tokens_right(
+                decoder_input_ids=shift_tokens_right(
                     labels, self.config.pad_token_id, self.config.decoder_start_token_id
                 )
 
-        outputs = self.model(
+        outputs=self.model(
             input_ids,
             attention_mask=attention_mask,
             decoder_input_ids=decoder_input_ids,
@@ -1762,40 +1763,40 @@ class NllbMoeForConditionalGeneration(NllbMoePreTrainedModel):
             output_router_logits=output_router_logits,
             return_dict=return_dict,
         )
-        lm_logits = self.lm_head(outputs[0])
+        lm_logits=self.lm_head(outputs[0])
 
-        loss = None
-        encoder_aux_loss = None
-        decoder_aux_loss = None
+        loss=None
+        encoder_aux_loss=None
+        decoder_aux_loss=None
 
         if labels is not None:
-            loss_fct = CrossEntropyLoss(ignore_index=-100)
+            loss_fct=CrossEntropyLoss(ignore_index=-100)
             # todo check in the config if router loss enables
 
             if output_router_logits:
-                encoder_router_logits = outputs[-1]
-                decoder_router_logits = outputs[3 if output_attentions else 4]
+                encoder_router_logits=outputs[-1]
+                decoder_router_logits=outputs[3 if output_attentions else 4]
 
                 # Compute the router loss (z_loss + auxiliary loss) for each router in the encoder and decoder
-                encoder_router_logits, encoder_expert_indexes = self._unpack_router_logits(
+                encoder_router_logits, encoder_expert_indexes=self._unpack_router_logits(
                     encoder_router_logits)
-                encoder_aux_loss = load_balancing_loss_func(
+                encoder_aux_loss=load_balancing_loss_func(
                     encoder_router_logits, encoder_expert_indexes)
 
-                decoder_router_logits, decoder_expert_indexes = self._unpack_router_logits(
+                decoder_router_logits, decoder_expert_indexes=self._unpack_router_logits(
                     decoder_router_logits)
-                decoder_aux_loss = load_balancing_loss_func(
+                decoder_aux_loss=load_balancing_loss_func(
                     decoder_router_logits, decoder_expert_indexes)
 
-            loss = loss_fct(
+            loss=loss_fct(
                 lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1))
 
             if output_router_logits and labels is not None:
-                aux_loss = self.router_aux_loss_coef * \
+                aux_loss=self.router_aux_loss_coef * \
                     (encoder_aux_loss + decoder_aux_loss)
-                loss = loss + aux_loss
+                loss=loss + aux_loss
 
-        output = (loss,) if loss is not None else ()
+        output=(loss,) if loss is not None else ()
         if not return_dict:
             output += (lm_logits,)
             if output_router_logits:  # only return the loss if they are not None
@@ -1826,17 +1827,17 @@ class NllbMoeForConditionalGeneration(NllbMoePreTrainedModel):
         )
 
     def _unpack_router_logits(self, router_outputs):
-        total_router_logits = []
-        total_expert_indexes = []
+        total_router_logits=[]
+        total_expert_indexes=[]
         for router_output in router_outputs:
             if router_output is not None:
-                router_logits, expert_indexes = router_output
+                router_logits, expert_indexes=router_output
                 total_router_logits.append(router_logits)
                 total_expert_indexes.append(expert_indexes)
 
-        total_router_logits = torch.cat(total_router_logits, dim=1) if len(
+        total_router_logits=torch.cat(total_router_logits, dim=1) if len(
             total_router_logits) > 0 else None
-        total_expert_indexes = torch.stack(total_expert_indexes, dim=1) if len(
+        total_expert_indexes=torch.stack(total_expert_indexes, dim=1) if len(
             total_expert_indexes) > 0 else None
         return total_router_logits, total_expert_indexes
 
@@ -1855,16 +1856,16 @@ class NllbMoeForConditionalGeneration(NllbMoePreTrainedModel):
     ):
         # cut decoder_input_ids if past is used
         if past_key_values is not None:
-            past_length = past_key_values[0][0].shape[2]
+            past_length=past_key_values[0][0].shape[2]
 
             # Some generation methods already pass only the last input ID
             if decoder_input_ids.shape[1] > past_length:
-                remove_prefix_length = past_length
+                remove_prefix_length=past_length
             else:
                 # Default to old behavior: keep only final ID
-                remove_prefix_length = decoder_input_ids.shape[1] - 1
+                remove_prefix_length=decoder_input_ids.shape[1] - 1
 
-            decoder_input_ids = decoder_input_ids[:, remove_prefix_length:]
+            decoder_input_ids=decoder_input_ids[:, remove_prefix_length:]
 
         return {
             "input_ids": None,  # encoder_outputs is defined. input_ids not needed
@@ -1879,9 +1880,9 @@ class NllbMoeForConditionalGeneration(NllbMoePreTrainedModel):
             "use_cache": use_cache,
         }
 
-    @staticmethod
+    @ staticmethod
     def _reorder_cache(past_key_values, beam_idx):
-        reordered_past = ()
+        reordered_past=()
         for layer_past in past_key_values:
             reordered_past += (
                 tuple(past_state.index_select(0, beam_idx.to(past_state.device))
